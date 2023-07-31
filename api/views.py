@@ -16,6 +16,19 @@ def product_list(request):
     products = Product.objects.all()
     serializer = ProductSerializer(products, many=True)
     return Response(serializer.data)
+@api_view(['GET'])
+def brand_products(request, brand_name):
+    # Filter products based on the provided brand_name
+    products = Product.objects.filter(brand__iexact=brand_name)
+    serializer = ProductSerializer(products, many=True)
+    return Response(serializer.data)
+@api_view(['GET'])
+def category_products(request, category_name):
+    # Filter products based on the provided brand_name
+    products = Product.objects.filter(category__iexact=category_name)
+    serializer = ProductSerializer(products, many=True)
+    return Response(serializer.data)
+
 
 @api_view(['GET'])
 def product_detail(request, pk):
@@ -31,7 +44,7 @@ def product_detail(request, pk):
 def product_create(request):
     data = request.data
 
-    serializer = ProductSerializer(data=data)
+    serializer = ProductSerializer(data=data, many=True)
     if serializer.is_valid():
         serializer.save()
         return Response(serializer.data, status=status.HTTP_201_CREATED)
@@ -53,12 +66,17 @@ def saveditem_detail(request, pk):
 @api_view(['POST'])
 def saveditem_create(request):
     product_id = request.data.get('product')
+    is_cart = request.data.get('is_cart', False)
+    is_wishlist = request.data.get('is_wishlist', False)
     quantity = int(request.data.get('quantity', 1))
 
-    saved_item, created = SavedItem.objects.get_or_create(product_id=product_id)
-    saved_item.quantity = quantity
-    saved_item.is_cart = request.data.get('is_cart', False)
-    saved_item.is_wishlist = request.data.get('is_wishlist', False)
+    saved_item, created = SavedItem.objects.get_or_create(product_id=product_id, is_cart=is_cart, is_wishlist=is_wishlist)
+    if not created:
+        saved_item.quantity += quantity
+    else:
+        saved_item.quantity = quantity
+        saved_item.is_cart = is_cart
+        saved_item.is_wishlist = is_wishlist
     saved_item.save()
     serializer = SavedItemSerializer(saved_item)
     return Response(serializer.data, status=201)
@@ -84,6 +102,7 @@ def wishlist_items(request):
     wishlist_items = SavedItem.objects.filter(is_wishlist=True)
     serializer = SavedItemSerializer(wishlist_items, many=True)
     return Response(serializer.data)
+
 
 
 @api_view(['POST'])
